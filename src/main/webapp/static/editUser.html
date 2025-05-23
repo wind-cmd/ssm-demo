@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>编辑用户</title>
+    <style>
+        .container {
+            width: 400px;
+            margin: 50px auto;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .btn-group {
+            display: flex;
+            gap: 10px;
+        }
+        .btn {
+            flex: 1;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            color: white;
+        }
+        .save-btn {
+            background-color: #4CAF50;
+        }
+        .save-btn:hover {
+            background-color: #45a049;
+        }
+        .cancel-btn {
+            background-color: #f44336;
+        }
+        .cancel-btn:hover {
+            background-color: #da190b;
+        }
+        .message {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+        }
+        .success {
+            background-color: #dff0d8;
+            color: #3c763d;
+            border: 1px solid #d6e9c6;
+        }
+        .error {
+            background-color: #f2dede;
+            color: #a94442;
+            border: 1px solid #ebccd1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>编辑用户</h2>
+        <div class="form-group">
+            <label for="username">用户名：</label>
+            <input type="text" id="username" name="username" required>
+        </div>
+        <div class="form-group">
+            <label for="password">密码：</label>
+            <input type="password" id="password" name="password" placeholder="不修改请留空">
+        </div>
+        <div class="form-group">
+            <label for="age">年龄：</label>
+            <input type="number" id="age" name="age" required>
+        </div>
+        <div class="btn-group">
+            <button class="btn save-btn" onclick="saveUser()">保存</button>
+            <button class="btn cancel-btn" onclick="goBack()">取消</button>
+        </div>
+        <div id="message" class="message"></div>
+    </div>
+
+    <script>
+        let userId = null;
+        
+        // 页面加载完成后获取用户信息
+        document.addEventListener('DOMContentLoaded', () => {
+            // 从URL获取用户ID
+            const urlParams = new URLSearchParams(window.location.search);
+            userId = urlParams.get('id');
+            
+            if (!userId) {
+                showMessage('未指定用户ID', false);
+                return;
+            }
+
+            // 获取用户信息
+            fetch(`/ssm-demo/user/${userId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('获取用户信息失败');
+                    }
+                    return response.json();
+                })
+                .then(user => {
+                    document.getElementById('username').value = user.username;
+                    document.getElementById('age').value = user.age;
+                })
+                .catch(error => {
+                    showMessage(error.message, false);
+                });
+        });
+
+        function saveUser() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const age = document.getElementById('age').value;
+
+            if (!username || !age) {
+                showMessage('请填写必填字段', false);
+                return;
+            }
+
+            const data = {
+                username: username,
+                age: parseInt(age)
+            };
+
+            // 如果输入了密码，则添加到请求数据中
+            if (password) {
+                data.password = password;
+            }
+
+            fetch(`/ssm-demo/user/${userId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('更新失败');
+                }
+                showMessage('更新成功', true);
+                setTimeout(() => {
+                    window.location.href = 'userList.html';
+                }, 1500);
+            })
+            .catch(error => {
+                showMessage('更新失败：' + error.message, false);
+            });
+        }
+
+        function goBack() {
+            window.location.href = 'userList.html';
+        }
+
+        function showMessage(message, isSuccess) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.textContent = message;
+            messageDiv.style.display = 'block';
+            messageDiv.className = 'message ' + (isSuccess ? 'success' : 'error');
+            
+            setTimeout(() => {
+                messageDiv.style.display = 'none';
+            }, 3000);
+        }
+    </script>
+</body>
+</html> 

@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>班级成绩单查询</title>
+    <style>
+        .container { width: 1000px; margin: 50px auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background: #fff; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .select-group { margin-bottom: 20px; }
+        .select-group label { margin-right: 10px; }
+        .table-container { 
+            max-height: 500px; 
+            overflow-y: auto; 
+            margin-bottom: 20px;
+            border: 1px solid #eee;
+        }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 10px; border-bottom: 1px solid #ddd; text-align: center; }
+        th { 
+            background: #f5f5f5; 
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            cursor: pointer;
+        }
+        th:hover {
+            background: #e0e0e0;
+        }
+        .summary { margin-top: 20px; font-size: 16px; }
+        .avg-row { background: #e8f5e9; font-weight: bold; }
+        .score-high { background: #e8f5e9 !important; color: #388e3c; font-weight: bold; }
+        .score-low { background: #ffebee !important; color: #d32f2f; font-weight: bold; }
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 20px;
+            gap: 5px;
+        }
+        .pagination button {
+            padding: 5px 12px;
+            border: 1px solid #ddd;
+            background: #fff;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+        .pagination button.active {
+            background: #4CAF50;
+            color: #fff;
+            border-color: #4CAF50;
+        }
+        .pagination button:disabled {
+            color: #ccc;
+            cursor: not-allowed;
+        }
+        .pagination .ellipsis {
+            padding: 5px;
+            color: #666;
+        }
+        .export-btn {
+            background-color: #2196F3;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            margin-left: 10px;
+        }
+        .export-btn:hover {
+            background-color: #1976D2;
+        }
+        .sort-icon::after {
+            content: '↕';
+            margin-left: 5px;
+            font-size: 12px;
+        }
+        .sort-asc::after {
+            content: '↑';
+        }
+        .sort-desc::after {
+            content: '↓';
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>班级成绩单查询</h2>
+            <div>
+                <a href="index.html" class="export-btn" style="background:#888">返回首页</a>
+                <button class="export-btn" onclick="exportToExcel()">导出Excel</button>
+            </div>
+        </div>
+        <div class="select-group">
+            <label for="pageSizeSelect">每页显示：</label>
+            <select id="pageSizeSelect" onchange="changePageSize()">
+                <option value="5">5</option>
+                <option value="10" selected>10</option>
+                <option value="20">20</option>
+                <option value="50">50</option>
+            </select>
+            <label for="classSelect" style="margin-left: 20px;">选择班级：</label>
+            <select id="classSelect" onchange="loadClassScores()"></select>
+            <button id="toggleHighlightBtn" onclick="toggleHighlight()">高低分高亮</button>
+        </div>
+        <div class="table-container">
+            <table id="scoreTable">
+                <thead id="scoreTableHead"></thead>
+                <tbody id="scoreTableBody"></tbody>
+            </table>
+        </div>
+        <div class="pagination" id="pagination"></div>
+        <div class="summary" id="scoreSummary"></div>
+    </div>
+    <script>
+        let highlightMode = false;
+        let lastClassScoreData = null;
+        let currentPage = 1;
+        let pageSize = 10;
+        let sortColumn = '';
+        let sortOrder = 'asc';
+        let allScoreData = null;
+
+        function loadAllClasses() {
+            fetch('/ssm-demo/user/classList')
+                .then(res => res.json())
+                .then(data => {
+                    let html = '<option value="">全部</option>' + data.map(c => `<option value="${c}">${c}</option>`).join('');
+                    document.getElementById('classSelect').innerHTML = html;
+                });
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            loadAllClasses();
+            loadClassScores();
+        });
+
+        function loadClassScores() {
+            const className = document.getElementById('classSelect').value;
+            fetch(`/ssm-demo/score/classList?className=${encodeURIComponent(className || '')}`)
+                .then(res => res.json())
+                .then(data => {
+                    allScoreData = data;
+                    lastClassScoreData = data;
+                    renderClassScoreTable(data);
+                });
+        }
+
+        function changePageSize() {
+            pageSize = parseInt(document.getElementById('pageSizeSelect').value);
+            currentPage = 1;
+            if (lastClassScoreData) renderClassScoreTable(lastClassScoreData);
+        }
+
+        function sortData(data, column) {
+            if (sortColumn === column) {
+                sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortColumn = column;
+                sortOrder = 'asc';
+            }
+
+            const students = [...data.students];
+            students.sort((a, b) => {
+                let valueA = column === 'total' ? a.total : (column === 'avg' ? a.avg : a.scores[column]);
+                let valueB = column === 'total' ? b.total : (column === 'avg' ? b.avg : b.scores[column]);
+                valueA = valueA === null || valueA === undefined ? 0 : valueA;
+                valueB = valueB === null || valueB === undefined ? 0 : valueB;
+                return sortOrder === 'asc' ? valueA - valueB : valueB - valueA;
+            });
+
+            return {...data, students};
+        }
+
+        function renderPagination(total) {
+            const totalPages = Math.ceil(total / pageSize);
+            const pagination = document.getElementById('pagination');
+            pagination.innerHTML = '';
+            
+            // 添加首页按钮
+            const firstBtn = document.createElement('button');
+            firstBtn.textContent = '首页';
+            firstBtn.onclick = () => {
+                currentPage = 1;
+                renderClassScoreTable(lastClassScoreData);
+            };
+            firstBtn.disabled = currentPage === 1;
+            pagination.appendChild(firstBtn);
+
+            // 添加上一页按钮
+            const prevBtn = document.createElement('button');
+            prevBtn.textContent = '上一页';
+            prevBtn.onclick = () => {
+                currentPage--;
+                renderClassScoreTable(lastClassScoreData);
+            };
+            prevBtn.disabled = currentPage === 1;
+            pagination.appendChild(prevBtn);
+
+            // 计算需要显示的页码范围
+            let start = Math.max(1, currentPage - 2);
+            let end = Math.min(totalPages, start + 4);
+            start = Math.max(1, end - 4);
+
+            // 显示页码
+            if (start > 1) {
+                const span = document.createElement('span');
+                span.className = 'ellipsis';
+                span.textContent = '...';
+                pagination.appendChild(span);
+            }
+
+            for (let i = start; i <= end; i++) {
+                const btn = document.createElement('button');
+                btn.textContent = i;
+                btn.className = i === currentPage ? 'active' : '';
+                btn.disabled = i === currentPage;
+                btn.onclick = () => {
+                    currentPage = i;
+                    renderClassScoreTable(lastClassScoreData);
+                };
+                pagination.appendChild(btn);
+            }
+
+            if (end < totalPages) {
+                const span = document.createElement('span');
+                span.className = 'ellipsis';
+                span.textContent = '...';
+                pagination.appendChild(span);
+            }
+
+            // 添加下一页按钮
+            const nextBtn = document.createElement('button');
+            nextBtn.textContent = '下一页';
+            nextBtn.onclick = () => {
+                currentPage++;
+                renderClassScoreTable(lastClassScoreData);
+            };
+            nextBtn.disabled = currentPage === totalPages;
+            pagination.appendChild(nextBtn);
+
+            // 添加末页按钮
+            const lastBtn = document.createElement('button');
+            lastBtn.textContent = '末页';
+            lastBtn.onclick = () => {
+                currentPage = totalPages;
+                renderClassScoreTable(lastClassScoreData);
+            };
+            lastBtn.disabled = currentPage === totalPages;
+            pagination.appendChild(lastBtn);
+        }
+
+        function toggleHighlight() {
+            highlightMode = !highlightMode;
+            document.getElementById('toggleHighlightBtn').textContent = highlightMode ? '普通模式' : '高低分高亮';
+            if (lastClassScoreData) renderClassScoreTable(lastClassScoreData);
+        }
+
+        function renderClassScoreTable(data) {
+            if (!data || !data.subjects || !data.students) {
+                document.getElementById('scoreTableHead').innerHTML = '';
+                document.getElementById('scoreTableBody').innerHTML = '';
+                document.getElementById('scoreSummary').innerText = '';
+                return;
+            }
+
+            const subjects = data.subjects;
+            let students = data.students;
+            const subjectAvg = data.subjectAvg;
+            const classAvg = data.classAvg;
+
+            // 如果有排序列，进行排序
+            if (sortColumn) {
+                data = sortData(data, sortColumn);
+                students = data.students;
+            }
+
+            // 表头
+            let headHtml = '<tr><th onclick="handleSort(\'username\')">姓名</th>';
+            subjects.forEach(sub => {
+                const sortClass = sortColumn === sub.name ? ` sort-${sortOrder}` : ' sort-icon';
+                headHtml += `<th onclick="handleSort('${sub.name}')" class="${sortClass}">${sub.name}</th>`;
+            });
+            const totalSortClass = sortColumn === 'total' ? ` sort-${sortOrder}` : ' sort-icon';
+            const avgSortClass = sortColumn === 'avg' ? ` sort-${sortOrder}` : ' sort-icon';
+            headHtml += `<th onclick="handleSort('total')" class="${totalSortClass}">总分</th>
+                        <th onclick="handleSort('avg')" class="${avgSortClass}">平均分</th></tr>`;
+            document.getElementById('scoreTableHead').innerHTML = headHtml;
+
+            // 计算分页
+            const start = (currentPage - 1) * pageSize;
+            const end = Math.min(start + pageSize, students.length);
+            const pageStudents = students.slice(start, end);
+
+            // 表体
+            let bodyHtml = '';
+            // 先添加平均分行
+            bodyHtml += `<tr class="avg-row"><td>科目均分</td>`;
+            subjects.forEach(sub => {
+                bodyHtml += `<td>${subjectAvg[sub.name] ? subjectAvg[sub.name].toFixed(2) : '-'}</td>`;
+            });
+            bodyHtml += `<td colspan="2">班级总平均分：${classAvg.toFixed(2)}</td></tr>`;
+
+            // 添加学生数据
+            pageStudents.forEach(stu => {
+                let rowCls = '';
+                if (highlightMode && stu.total >= classAvg) rowCls = 'score-high';
+                bodyHtml += `<tr class="${rowCls}"><td>${stu.username}</td>`;
+                subjects.forEach(sub => {
+                    const val = stu.scores[sub.name];
+                    let cls = '';
+                    if (highlightMode && val !== null && val !== undefined) {
+                        if (val >= subjectAvg[sub.name]) cls = 'score-high';
+                        else if (val === 0) cls = 'score-low';
+                        else cls = 'score-low';
+                    } else if (val === 0) {
+                        cls = 'score-low';
+                    }
+                    bodyHtml += `<td class="${cls}">${val !== null && val !== undefined ? val : 0}</td>`;
+                });
+                bodyHtml += `<td>${stu.total}</td><td>${stu.avg.toFixed(2)}</td></tr>`;
+            });
+
+            document.getElementById('scoreTableBody').innerHTML = bodyHtml;
+            document.getElementById('scoreSummary').innerText = `共${students.length}人，${subjects.length}科目`;
+            
+            renderPagination(students.length);
+        }
+
+        function handleSort(column) {
+            if (lastClassScoreData) {
+                lastClassScoreData = sortData(lastClassScoreData, column);
+                currentPage = 1;
+                renderClassScoreTable(lastClassScoreData);
+            }
+        }
+
+        function exportToExcel() {
+            if (!lastClassScoreData) return;
+
+            const subjects = lastClassScoreData.subjects;
+            const students = lastClassScoreData.students;
+            const subjectAvg = lastClassScoreData.subjectAvg;
+            const classAvg = lastClassScoreData.classAvg;
+
+            // 创建CSV内容
+            let csvContent = "姓名";
+            subjects.forEach(sub => {
+                csvContent += `,${sub.name}`;
+            });
+            csvContent += ",总分,平均分\n";
+
+            // 添加平均分行
+            csvContent += "科目均分";
+            subjects.forEach(sub => {
+                csvContent += `,${subjectAvg[sub.name] ? subjectAvg[sub.name].toFixed(2) : 0}`;
+            });
+            csvContent += `,${classAvg.toFixed(2)},${(classAvg / subjects.length).toFixed(2)}\n`;
+
+            // 添加学生数据
+            students.forEach(stu => {
+                csvContent += `${stu.username}`;
+                subjects.forEach(sub => {
+                    const val = stu.scores[sub.name];
+                    csvContent += `,${val !== null && val !== undefined ? val : 0}`;
+                });
+                csvContent += `,${stu.total},${stu.avg.toFixed(2)}\n`;
+            });
+
+            // 创建Blob对象
+            const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = window.URL.createObjectURL(blob);
+            
+            // 创建下载链接
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", "成绩单.csv");
+            document.body.appendChild(link);
+            
+            // 触发下载
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html> 

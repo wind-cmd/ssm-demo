@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>用户列表</title>
+    <style>
+        .container {
+            width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .add-btn {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .add-btn:hover {
+            background-color: #45a049;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f5f5f5;
+        }
+        tr:hover {
+            background-color: #f9f9f9;
+        }
+        .action-btn {
+            padding: 5px 10px;
+            margin: 0 5px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            color: white;
+        }
+        .edit-btn {
+            background-color: #2196F3;
+        }
+        .delete-btn {
+            background-color: #f44336;
+        }
+        .message {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+        }
+        .success {
+            background-color: #dff0d8;
+            color: #3c763d;
+            border: 1px solid #d6e9c6;
+        }
+        .error {
+            background-color: #f2dede;
+            color: #a94442;
+            border: 1px solid #ebccd1;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            display: none;
+        }
+        /* 弹窗样式 */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: #fff;
+            margin: 10% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 350px;
+            border-radius: 6px;
+            position: relative;
+        }
+        .close {
+            color: #aaa;
+            position: absolute;
+            right: 10px;
+            top: 10px;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover {
+            color: #f44336;
+        }
+        .modal-title {
+            margin-bottom: 15px;
+            font-size: 20px;
+            font-weight: bold;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .btn-modal {
+            flex: 1;
+            padding: 8px 0;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            color: white;
+        }
+        .save-btn {
+            background-color: #4CAF50;
+        }
+        .save-btn:hover {
+            background-color: #45a049;
+        }
+        .cancel-btn {
+            background-color: #f44336;
+        }
+        .cancel-btn:hover {
+            background-color: #da190b;
+        }
+        /* 分页样式 */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 20px;
+            gap: 5px;
+        }
+        .pagination button {
+            padding: 5px 12px;
+            border: 1px solid #ddd;
+            background: #fff;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+        .pagination button.active {
+            background: #4CAF50;
+            color: #fff;
+            border-color: #4CAF50;
+        }
+        .pagination button:disabled {
+            color: #ccc;
+            cursor: not-allowed;
+        }
+        .pagination .ellipsis {
+            padding: 5px;
+            color: #666;
+        }
+        /* 导出按钮样式 */
+        .export-btn {
+            background-color: #2196F3;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            margin-left: 10px;
+        }
+        .export-btn:hover {
+            background-color: #1976D2;
+        }
+        .global-message {
+            position: fixed;
+            top: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            min-width: 200px;
+            max-width: 400px;
+            background: #4CAF50;
+            color: #fff;
+            padding: 16px 24px;
+            border-radius: 6px;
+            font-size: 18px;
+            text-align: center;
+            display: none;
+            box-shadow: 0 2px 8px #888;
+        }
+        .global-message.error { background: #f44336; }
+        /* 添加表格容器样式 */
+        .table-container {
+            max-height: 500px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            border: 1px solid #eee;
+        }
+        /* 固定表头 */
+        .table-container thead th {
+            position: sticky;
+            top: 0;
+            background: #f5f5f5;
+            z-index: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>用户列表</h2>
+            <div>
+                <a href="nav.html" class="add-btn" style="background:#888;margin-right:10px;">导航</a>
+                <button class="add-btn" onclick="openAddModal()">添加用户</button>
+                <button class="export-btn" onclick="exportToExcel()">导出Excel</button>
+            </div>
+        </div>
+        <div style="margin-bottom:10px;">
+            <label>每页显示：</label>
+            <select id="pageSizeSelect" onchange="changePageSize()">
+                <option value="5">5</option>
+                <option value="10" selected>10</option>
+                <option value="20">20</option>
+                <option value="50">50</option>
+            </select>
+            条
+            <label style="margin-left:20px;">班级筛选：</label>
+            <select id="classFilterSelect" style="padding:6px;width:120px;"></select>
+            <button onclick="filterByClass()">筛选</button>
+            <button onclick="resetClassFilter()">重置</button>
+        </div>
+        <div id="loading" class="loading">加载中...</div>
+        <div class="table-container">
+            <table id="userTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>用户名</th>
+                        <th>年龄</th>
+                        <th>班级</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="userList">
+                </tbody>
+            </table>
+        </div>
+        <div class="pagination" id="pagination"></div>
+        <div id="globalMessage" class="global-message"></div>
+    </div>
+
+    <!-- 添加/编辑用户弹窗 -->
+    <div id="userModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeUserModal()">&times;</span>
+            <div class="modal-title" id="modalTitle">添加用户</div>
+            <div class="form-group">
+                <label for="modalUsername">用户名：</label>
+                <input type="text" id="modalUsername" required>
+            </div>
+            <div class="form-group">
+                <label for="modalPassword">密码：</label>
+                <input type="password" id="modalPassword" required>
+            </div>
+            <div class="form-group">
+                <label for="modalAge">年龄：</label>
+                <input type="number" id="modalAge" required>
+            </div>
+            <div class="form-group">
+                <label for="modalClass">班级：</label>
+                <select id="modalClass" required></select>
+            </div>
+            <div class="btn-group">
+                <button class="btn-modal save-btn" onclick="saveUser()">保存</button>
+                <button class="btn-modal cancel-btn" onclick="closeUserModal()">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 删除确认弹窗 -->
+    <div id="deleteModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeDeleteModal()">&times;</span>
+            <div class="modal-title">确认删除</div>
+            <div>确定要删除该用户吗？此操作不可恢复。</div>
+            <div class="btn-group">
+                <button class="btn-modal save-btn" onclick="confirmDeleteUser()">确认</button>
+                <button class="btn-modal cancel-btn" onclick="closeDeleteModal()">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let editingUserId = null;
+        let deletingUserId = null;
+        let currentPage = 1;
+        let pageSize = 10;
+        let totalUsers = 0;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadAllClassesForFilter();
+            loadUsers();
+        });
+
+        function loadUsers(page = 1, className = null) {
+            const loading = document.getElementById('loading');
+            const userList = document.getElementById('userList');
+            loading.style.display = 'block';
+            userList.innerHTML = '';
+            currentPage = page;
+            if (className === null || className === undefined) {
+                className = document.getElementById('classFilterSelect').value;
+            }
+            let url = `/ssm-demo/user/list?page=${page}&size=${pageSize}`;
+            if (className) {
+                url += `&className=${encodeURIComponent(className)}`;
+            }
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('获取用户列表失败');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    loading.style.display = 'none';
+                    const users = data.users || data;
+                    totalUsers = data.total || users.length;
+                    if (users.length === 0) {
+                        userList.innerHTML = '<tr><td colspan="5" style="text-align: center;">暂无用户数据</td></tr>';
+                        renderPagination(1, 1);
+                        return;
+                    }
+                    users.forEach(user => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${user.id}</td>
+                            <td>${user.username}</td>
+                            <td>${user.age}</td>
+                            <td>${user.className || ''}</td>
+                            <td>
+                                <button class="action-btn edit-btn" onclick="openEditModal(${user.id})">编辑</button>
+                                <button class="action-btn delete-btn" onclick="openDeleteModal(${user.id})">删除</button>
+                                <a class="action-btn" style="background:#8bc34a" href="scoreList.html?userId=${user.id}">成绩单</a>
+                            </td>
+                        `;
+                        userList.appendChild(row);
+                    });
+                    renderPagination(page, Math.ceil(totalUsers / pageSize));
+                })
+                .catch(error => {
+                    loading.style.display = 'none';
+                    showGlobalMessage(error.message, false);
+                });
+        }
+
+        function renderPagination(current, total) {
+            const pagination = document.getElementById('pagination');
+            pagination.innerHTML = '';
+            
+            // 添加首页按钮
+            const firstBtn = document.createElement('button');
+            firstBtn.textContent = '首页';
+            firstBtn.onclick = () => loadUsers(1);
+            firstBtn.disabled = current === 1;
+            pagination.appendChild(firstBtn);
+
+            // 添加上一页按钮
+            const prevBtn = document.createElement('button');
+            prevBtn.textContent = '上一页';
+            prevBtn.onclick = () => loadUsers(current - 1);
+            prevBtn.disabled = current === 1;
+            pagination.appendChild(prevBtn);
+
+            // 计算需要显示的页码范围
+            let start = Math.max(1, current - 2);
+            let end = Math.min(total, start + 4);
+            start = Math.max(1, end - 4);
+
+            // 显示页码
+            if (start > 1) {
+                pagination.appendChild(createEllipsis());
+            }
+
+            for (let i = start; i <= end; i++) {
+                const btn = document.createElement('button');
+                btn.textContent = i;
+                btn.className = i === current ? 'active' : '';
+                btn.disabled = i === current;
+                btn.onclick = () => loadUsers(i);
+                pagination.appendChild(btn);
+            }
+
+            if (end < total) {
+                pagination.appendChild(createEllipsis());
+            }
+
+            // 添加下一页按钮
+            const nextBtn = document.createElement('button');
+            nextBtn.textContent = '下一页';
+            nextBtn.onclick = () => loadUsers(current + 1);
+            nextBtn.disabled = current === total;
+            pagination.appendChild(nextBtn);
+
+            // 添加末页按钮
+            const lastBtn = document.createElement('button');
+            lastBtn.textContent = '末页';
+            lastBtn.onclick = () => loadUsers(total);
+            lastBtn.disabled = current === total;
+            pagination.appendChild(lastBtn);
+        }
+
+        function createEllipsis() {
+            const span = document.createElement('span');
+            span.className = 'ellipsis';
+            span.textContent = '...';
+            return span;
+        }
+
+        function loadAllClassesForUser() {
+            fetch('/ssm-demo/user/classList')
+                .then(res => res.json())
+                .then(data => {
+                    let html = data.map(c => `<option value="${c}">${c}</option>`).join('');
+                    document.getElementById('modalClass').innerHTML = html;
+                });
+        }
+
+        function openAddModal() {
+            editingUserId = null;
+            document.getElementById('modalTitle').textContent = '添加用户';
+            document.getElementById('modalUsername').value = '';
+            document.getElementById('modalPassword').value = '';
+            document.getElementById('modalAge').value = '';
+            loadAllClassesForUser();
+            document.getElementById('modalClass').value = '';
+            document.getElementById('userModal').style.display = 'block';
+        }
+
+        function openEditModal(id) {
+            editingUserId = id;
+            document.getElementById('modalTitle').textContent = '编辑用户';
+            fetch(`/ssm-demo/user/${id}`)
+                .then(response => response.json())
+                .then(user => {
+                    document.getElementById('modalUsername').value = user.username;
+                    document.getElementById('modalPassword').value = '';
+                    document.getElementById('modalAge').value = user.age;
+                    loadAllClassesForUser();
+                    setTimeout(() => {
+                        document.getElementById('modalClass').value = user.className || '';
+                    }, 100);
+                    document.getElementById('userModal').style.display = 'block';
+                });
+        }
+
+        function closeUserModal() {
+            document.getElementById('userModal').style.display = 'none';
+        }
+
+        function saveUser() {
+            const username = document.getElementById('modalUsername').value.trim();
+            const password = document.getElementById('modalPassword').value;
+            const age = document.getElementById('modalAge').value;
+            const className = document.getElementById('modalClass').value;
+            if (!username || !age || !className || (!editingUserId && !password)) {
+                showMessage('请填写所有字段', false);
+                return;
+            }
+            const data = {
+                username: username,
+                age: parseInt(age),
+                className: className
+            };
+            if (password) {
+                data.password = password;
+            }
+            if (editingUserId) {
+                // 编辑
+                fetch(`/ssm-demo/user/${editingUserId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.text().then(text => { throw new Error(text || '更新失败'); });
+                    }
+                    closeUserModal();
+                    showGlobalMessage('更新成功', true);
+                    loadUsers(currentPage);
+                })
+                .catch(error => {
+                    showGlobalMessage('更新失败：' + error.message, false);
+                });
+            } else {
+                // 添加
+                if (!password) {
+                    showMessage('密码不能为空', false);
+                    return;
+                }
+                data.password = password;
+                fetch('/ssm-demo/user', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.text().then(text => { throw new Error(text || '添加失败'); });
+                    }
+                    closeUserModal();
+                    showGlobalMessage('添加成功', true);
+                    loadUsers(1);
+                })
+                .catch(error => {
+                    showGlobalMessage('添加失败：' + error.message, false);
+                });
+            }
+        }
+
+        function openDeleteModal(id) {
+            deletingUserId = id;
+            document.getElementById('deleteModal').style.display = 'block';
+        }
+        function closeDeleteModal() {
+            deletingUserId = null;
+            document.getElementById('deleteModal').style.display = 'none';
+        }
+        function confirmDeleteUser() {
+            if (!deletingUserId) return;
+            fetch(`/ssm-demo/user/${deletingUserId}`, {
+                method: 'DELETE'
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('删除失败');
+                }
+                closeDeleteModal();
+                showGlobalMessage('删除成功', true);
+                loadUsers(currentPage);
+            })
+            .catch(error => {
+                showGlobalMessage('删除失败：' + error.message, false);
+            });
+        }
+        function showMessage(message, isSuccess) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.textContent = message;
+            messageDiv.style.display = 'block';
+            messageDiv.className = 'message ' + (isSuccess ? 'success' : 'error');
+            setTimeout(() => {
+                messageDiv.style.display = 'none';
+            }, 3000);
+        }
+        function changePageSize() {
+            pageSize = parseInt(document.getElementById('pageSizeSelect').value);
+            loadUsers(1);
+        }
+        function showGlobalMessage(message, isSuccess) {
+            const msg = document.getElementById('globalMessage');
+            msg.textContent = message;
+            msg.className = 'global-message' + (isSuccess ? '' : ' error');
+            msg.style.display = 'block';
+            setTimeout(() => { msg.style.display = 'none'; }, 2000);
+        }
+        function loadAllClassesForFilter() {
+            fetch('/ssm-demo/user/classList')
+                .then(res => res.json())
+                .then(data => {
+                    let html = '<option value="">全部</option>' + data.map(c => `<option value="${c}">${c}</option>`).join('');
+                    document.getElementById('classFilterSelect').innerHTML = html;
+                });
+        }
+        function filterByClass() {
+            const className = document.getElementById('classFilterSelect').value;
+            loadUsers(1, className);
+        }
+        function resetClassFilter() {
+            document.getElementById('classFilterSelect').value = '';
+            loadUsers(1);
+        }
+        // 点击弹窗外部关闭弹窗
+        window.onclick = function(event) {
+            if (event.target === document.getElementById('userModal')) {
+                closeUserModal();
+            }
+            if (event.target === document.getElementById('deleteModal')) {
+                closeDeleteModal();
+            }
+        }
+        // 添加导出Excel功能
+        function exportToExcel() {
+            // 获取所有数据
+            fetch(`/ssm-demo/user/list?page=1&size=${totalUsers}`)
+                .then(response => response.json())
+                .then(data => {
+                    const users = data.users || data;
+                    // 创建CSV内容
+                    let csvContent = "ID,用户名,年龄,班级\n";
+                    users.forEach(user => {
+                        csvContent += `${user.id},"${user.username}",${user.age},"${user.className || ''}"\n`;
+                    });
+                    
+                    // 创建Blob对象
+                    const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
+                    const url = window.URL.createObjectURL(blob);
+                    
+                    // 创建下载链接
+                    const link = document.createElement("a");
+                    link.setAttribute("href", url);
+                    link.setAttribute("download", "用户列表.csv");
+                    document.body.appendChild(link);
+                    
+                    // 触发下载
+                    link.click();
+                    document.body.removeChild(link);
+                })
+                .catch(error => {
+                    showGlobalMessage('导出失败：' + error.message, false);
+                });
+        }
+    </script>
+</body>
+</html> 

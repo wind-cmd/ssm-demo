@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.ssm.dao.UserDao">
+    
+    <resultMap id="UserResultMap" type="com.example.ssm.entity.User">
+        <id property="id" column="id"/>
+        <result property="username" column="username"/>
+        <result property="password" column="password"/>
+        <result property="age" column="age"/>
+        <result property="className" column="class_name"/>
+    </resultMap>
+    
+    <select id="getAllUsers" resultMap="UserResultMap">
+        SELECT * FROM user
+    </select>
+    
+    <select id="getUserById" parameterType="int" resultMap="UserResultMap">
+        SELECT * FROM user WHERE id = #{id}
+    </select>
+    
+    <insert id="insertUser" parameterType="com.example.ssm.entity.User">
+        INSERT INTO user (username, password, age, class_name) 
+        VALUES (#{username}, #{password}, #{age}, #{className})
+    </insert>
+    
+    <update id="updateUser" parameterType="com.example.ssm.entity.User">
+        UPDATE user
+        <set>
+            <if test="username != null">username = #{username},</if>
+            <if test="password != null and password != ''">password = #{password},</if>
+            <if test="age != null">age = #{age},</if>
+            <if test="className != null">class_name = #{className},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+    
+    <delete id="deleteUser" parameterType="int">
+        DELETE FROM user WHERE id = #{id}
+    </delete>
+    
+    <!-- 按班级查询用户 -->
+    <select id="getUsersByClass" parameterType="string" resultMap="UserResultMap">
+        SELECT * FROM user WHERE class_name = #{className}
+    </select>
+</mapper>    

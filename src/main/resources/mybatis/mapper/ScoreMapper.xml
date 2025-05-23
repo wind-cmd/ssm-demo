@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.ssm.dao.ScoreDao">
+    <select id="getScoreListByUserId" parameterType="int" resultType="map">
+        SELECT s.id, s.score, sub.name AS subjectName
+        FROM score s
+        JOIN subject sub ON s.subject_id = sub.id
+        WHERE s.user_id = #{userId}
+        ORDER BY sub.id
+    </select>
+    <select id="getScoreListByClass" parameterType="string" resultType="map">
+        SELECT u.id as userId, u.username, u.class_name, sub.id as subjectId, sub.name as subjectName, s.score
+        FROM user u
+        JOIN score s ON u.id = s.user_id
+        JOIN subject sub ON s.subject_id = sub.id
+        <where>
+            <if test="className != null and className != ''">
+                u.class_name = #{className}
+            </if>
+        </where>
+        ORDER BY u.id, sub.id
+    </select>
+    <select id="getAllSubjects" resultType="com.example.ssm.entity.Subject">
+        SELECT * FROM subject ORDER BY id
+    </select>
+</mapper> 
